@@ -37,9 +37,12 @@ function AdminContent() {
       if (response.ok) {
         const keys = await response.json();
         setApiKeys(keys);
+      } else {
+        toast.error('Failed to load API keys');
       }
     } catch (error) {
       console.error('Failed to load API keys:', error);
+      toast.error('Failed to connect to server');
     }
   };
 
@@ -98,6 +101,17 @@ function AdminContent() {
     if (activeTab === 'Service accounts') {
       loadApiKeys();
     }
+  }, [activeTab]);
+
+  // Auto-refresh API keys every 30 seconds when on Service accounts tab
+  React.useEffect(() => {
+    let interval;
+    if (activeTab === 'Service accounts') {
+      interval = setInterval(loadApiKeys, 30000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [activeTab]);
 
   const filteredUsers = users.filter(user =>
@@ -330,51 +344,116 @@ function AdminContent() {
 
                 {apiKeys.length > 0 ? (
                   <div className="bg-card border border-border rounded-lg overflow-hidden">
+                    <div className="px-4 py-3 bg-secondary border-b border-border">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-foreground">Active API Keys ({apiKeys.length})</h3>
+                        <button
+                          onClick={loadApiKeys}
+                          className="text-sm text-muted-foreground hover:text-foreground"
+                        >
+                          Refresh
+                        </button>
+                      </div>
+                    </div>
                     <table className="w-full">
-                      <thead className="bg-secondary">
+                      <thead className="bg-secondary/50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Role</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Created</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Last Used</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide"></th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {apiKeys.map((key) => (
-                          <tr key={key.id} className="hover:bg-secondary/50 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-3">
-                                <Key size={16} className="text-muted-foreground" />
-                                <span className="font-medium text-foreground">{key.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={cn(
-                                "grafana-badge",
-                                key.role === "Admin" && "bg-grafana-red/20 text-grafana-red",
-                                key.role === "Editor" && "bg-grafana-blue/20 text-grafana-blue",
-                                key.role === "Viewer" && "bg-muted text-muted-foreground"
-                              )}>
-                                {key.role}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground">
-                              {new Date(key.created).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground">
-                              {key.lastUsed ? new Date(key.lastUsed).toLocaleDateString() : 'Never'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() => deleteApiKey(key.id)}
-                                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-grafana-red"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {apiKeys.map((key) => {
+                          const isExpired = key.expires && new Date(key.expires) < new Date();
+                          const daysSinceCreated = Math.floor((new Date().getTime() - new Date(key.created).getTime()) / (1000 * 60 * 60 * 24));
+                          
+                          return (
+                            <tr key={key.id} className="hover:bg-secondary/50 transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div className={cn(
+                                    "p-1.5 rounded",
+                                    isExpired ? "bg-grafana-red/20" : "bg-primary/20"
+                                  )}>
+                                    <Key size={14} className={isExpired ? "text-grafana-red" : "text-primary"} />
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-foreground">{key.name}</span>
+                                    <div className="text-xs text-muted-foreground">ID: {key.id.slice(0, 8)}...</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={cn(
+                                  "grafana-badge",
+                                  key.role === "Admin" && "bg-grafana-red/20 text-grafana-red",
+                                  key.role === "Editor" && "bg-grafana-blue/20 text-grafana-blue",
+                                  key.role === "Viewer" && "bg-muted text-muted-foreground"
+                                )}>
+                                  {key.role}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-sm text-foreground">
+                                  {new Date(key.created).toLocaleDateString()}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {daysSinceCreated === 0 ? 'Today' : `${daysSinceCreated} days ago`}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-sm text-foreground">
+                                  {key.lastUsed ? new Date(key.lastUsed).toLocaleDateString() : 'Never'}
+                                </div>
+                                {key.lastUsed && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {Math.floor((new Date().getTime() - new Date(key.lastUsed).getTime()) / (1000 * 60 * 60 * 24))} days ago
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {isExpired ? (
+                                  <span className="grafana-badge bg-grafana-red/20 text-grafana-red">Expired</span>
+                                ) : key.expires ? (
+                                  <span className="grafana-badge bg-grafana-orange/20 text-grafana-orange">
+                                    Expires {new Date(key.expires).toLocaleDateString()}
+                                  </span>
+                                ) : (
+                                  <span className="grafana-badge bg-grafana-green/20 text-grafana-green">Active</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => {
+                                      const keyInfo = `Name: ${key.name}\nRole: ${key.role}\nCreated: ${new Date(key.created).toLocaleString()}\nLast Used: ${key.lastUsed ? new Date(key.lastUsed).toLocaleString() : 'Never'}\nStatus: ${isExpired ? 'Expired' : 'Active'}`;
+                                      toast.info(keyInfo, { duration: 5000 });
+                                    }}
+                                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                    title="View details"
+                                  >
+                                    <UserCog size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Are you sure you want to delete the API key "${key.name}"? This action cannot be undone.`)) {
+                                        deleteApiKey(key.id);
+                                      }
+                                    }}
+                                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                                    title="Delete API key"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

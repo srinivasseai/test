@@ -38,21 +38,36 @@ function ConnectionsContent() {
     loadDataSources();
   }, []);
 
+  // Auto-refresh datasources every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(loadDataSources, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const loadDataSources = async () => {
     try {
-      const sources = await PostgreSQLDataSource.listDataSources();
-      const mappedSources: DataSource[] = sources.map(source => ({
-        id: source.id,
-        name: source.name,
-        type: source.type,
-        url: source.url,
-        status: 'connected' as const,
-        default: source.isDefault || false
-      }));
-      setDataSources(mappedSources);
+      setLoading(true);
+      // Load from backend API
+      const response = await fetch('http://localhost:3001/api/datasources');
+      if (response.ok) {
+        const sources = await response.json();
+        const mappedSources: DataSource[] = sources.map(source => ({
+          id: source.id,
+          name: source.name,
+          type: source.type || 'PostgreSQL',
+          url: source.host ? `${source.host}:${source.port}/${source.database}` : source.url || 'N/A',
+          status: 'connected' as const,
+          default: source.isDefault || false
+        }));
+        setDataSources(mappedSources);
+        console.log('Loaded datasources from backend:', mappedSources);
+      } else {
+        console.error('Failed to load datasources from backend');
+        toast.error('Failed to load data sources from server');
+      }
     } catch (error) {
       console.error('Failed to load data sources:', error);
-      toast.error('Failed to load data sources');
+      toast.error('Failed to connect to server');
     } finally {
       setLoading(false);
     }
@@ -64,10 +79,22 @@ function ConnectionsContent() {
   };
 
   const handleDeleteDataSource = async (sourceId: string, sourceName: string) => {
+    if (!confirm(`Are you sure you want to delete the data source "${sourceName}"? This action cannot be undone.`)) {
+      return;
+    }
+    
     try {
-      await PostgreSQLDataSource.deleteDataSource(sourceId);
-      await loadDataSources(); // Reload the list
-      toast.success(`${sourceName} deleted successfully`);
+      const response = await fetch(`http://localhost:3001/api/datasources/${sourceId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        await loadDataSources(); // Reload the list
+        toast.success(`${sourceName} deleted successfully`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || `Failed to delete ${sourceName}`);
+      }
     } catch (error) {
       console.error('Failed to delete data source:', error);
       toast.error(`Failed to delete ${sourceName}`);
@@ -111,59 +138,88 @@ function ConnectionsContent() {
             <div className="text-center py-8">
               <div className="text-muted-foreground">Loading data sources...</div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredSources.map((source) => (
-              <div
-                key={source.name}
-                className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors"
+          ) : dataSources.length === 0 ? (
+            <div className="text-center py-12">
+              <Database size={48} className="mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No data sources configured</h3>
+              <p className="text-muted-foreground mb-4">Add your first data source to start building dashboards</p>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="grafana-btn grafana-btn-primary"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-secondary rounded-lg">
-                      <Database size={24} className="text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">{source.name}</span>
-                        {source.default && (
-                          <span className="px-2 py-0.5 bg-primary/20 text-primary rounded text-xs">default</span>
-                        )}
+                <Plus size={16} />
+                Add data source
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-muted-foreground">
+                  {dataSources.length} data source{dataSources.length !== 1 ? 's' : ''} configured
+                </div>
+                <button
+                  onClick={loadDataSources}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Refresh
+                </button>
+              </div>
+              <div className="space-y-3">
+                {filteredSources.map((source) => (
+                <div
+                  key={source.id}
+                  className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-secondary rounded-lg">
+                        <Database size={24} className="text-primary" />
                       </div>
-                      <div className="text-sm text-muted-foreground">{source.type}</div>
-                      <div className="text-sm text-muted-foreground">{source.url}</div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{source.name}</span>
+                          {source.default && (
+                            <span className="px-2 py-0.5 bg-primary/20 text-primary rounded text-xs">default</span>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{source.type}</div>
+                        <div className="text-sm text-muted-foreground">{source.url}</div>
+                        <div className="text-xs text-muted-foreground mt-1">ID: {source.id}</div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className={`flex items-center gap-1.5 ${source.status === "connected" ? "text-grafana-green" : "text-grafana-red"}`}>
-                      <CheckCircle size={16} />
-                      <span className="text-sm capitalize">{source.status}</span>
-                    </div>
-                    {source.status === "connected" && (
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center gap-1.5 ${source.status === "connected" ? "text-grafana-green" : "text-grafana-red"}`}>
+                        <CheckCircle size={16} />
+                        <span className="text-sm capitalize">{source.status}</span>
+                      </div>
+                      {source.status === "connected" && (
+                        <button
+                          onClick={() => window.location.href = '/dashboards/new'}
+                          className="grafana-btn grafana-btn-primary text-sm"
+                        >
+                          Build a dashboard
+                        </button>
+                      )}
                       <button
-                        onClick={() => window.location.href = '/dashboards/new'}
-                        className="grafana-btn grafana-btn-primary text-sm"
+                        onClick={() => toast.info(`Configuring ${source.name}...`)}
+                        className="p-2 rounded hover:bg-secondary text-muted-foreground transition-colors"
+                        title="Configure data source"
                       >
-                        Build a dashboard
+                        <Settings size={18} />
                       </button>
-                    )}
-                    <button
-                      onClick={() => toast.info(`Configuring ${source.name}...`)}
-                      className="p-2 rounded hover:bg-secondary text-muted-foreground transition-colors"
-                    >
-                      <Settings size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDataSource(source.id, source.name)}
-                      className="p-2 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                      <button
+                        onClick={() => handleDeleteDataSource(source.id, source.name)}
+                        className="p-2 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title="Delete data source"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
+                ))}
               </div>
-              ))}
-            </div>
+            </>
           )}
         </main>
       </div>
