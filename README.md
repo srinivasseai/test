@@ -1,73 +1,109 @@
-# Welcome to your Lovable project
+# Grafana Mirror Setup
 
-## Project info
+A complete Grafana-like dashboard application with persistent API key management.
 
-**URL**: https://lovable.dev/projects/24e6457f-5276-4e1a-b3c7-08d71f83eff2
+## 🚀 Quick Start
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/24e6457f-5276-4e1a-b3c7-08d71f83eff2) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+### Frontend Setup
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Backend Setup
+```sh
+cd server
+npm install
+npm run dev
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🔑 API Key Management
 
-**Use GitHub Codespaces**
+### Problem Solved
+API keys are now **persistent** and survive application restarts! They are stored in `server/data/api-keys.json`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Testing API Keys
 
-## What technologies are used for this project?
+**Option 1: PowerShell (Recommended for Windows)**
+```powershell
+.\test-api-key.ps1
+```
 
-This project is built with:
+**Option 2: Node.js**
+```sh
+node test-api-key.js
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+**Option 3: Manual curl**
+```sh
+# Create API key
+curl -X POST http://localhost:3001/api/auth/keys \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My API Key","role":"Admin"}'
 
-## How can I deploy this project?
+# Test API key (replace YOUR_API_KEY with actual key)
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  http://localhost:3001/api/auth/keys
+```
 
-Simply open [Lovable](https://lovable.dev/projects/24e6457f-5276-4e1a-b3c7-08d71f83eff2) and click on Share -> Publish.
+### API Key Features
+- ✅ **Persistent storage** - Keys survive server restarts
+- ✅ **Expiration support** - Optional TTL for keys
+- ✅ **Role-based access** - Admin, Editor, Viewer roles
+- ✅ **Usage tracking** - Last used timestamps
+- ✅ **Manual deletion** - Delete keys when needed
 
-## Can I connect a custom domain to my Lovable project?
+## 📚 API Documentation
 
-Yes, you can!
+See [API_KEYS_GUIDE.md](API_KEYS_GUIDE.md) for complete API documentation.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🛠 Technologies Used
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn-ui
+- **Backend**: Node.js, Express, TypeScript
+- **Storage**: JSON file-based persistence
+- **Authentication**: Bearer token API keys
+
+## 📁 Project Structure
+
+```
+├── src/                 # Frontend React application
+├── server/              # Backend Express server
+│   ├── src/
+│   │   ├── api/         # API routes
+│   │   ├── services/    # Business logic
+│   │   ├── middleware/  # Auth middleware
+│   │   └── types/       # TypeScript types
+│   └── data/            # Persistent storage (auto-created)
+│       └── api-keys.json # API keys storage
+├── test-api-key.ps1     # PowerShell test script
+├── test-api-key.js      # Node.js test script
+└── test-api-key.bat     # Windows batch test script
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+Create `server/.env`:
+```env
+PORT=3001
+NODE_ENV=development
+```
+
+### Data Directory
+API keys are automatically stored in `server/data/api-keys.json`. This directory is created automatically on first run.
+
+## 🚨 Security Notes
+
+- API keys are stored in plain text in JSON file
+- For production, consider using a proper database with encryption
+- Keep your `data/` directory secure and backed up
+- API keys start with `gm_` prefix for easy identification
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test with the provided scripts
+5. Submit a pull request

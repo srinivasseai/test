@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-export const authenticateApiKey = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateApiKey = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -18,7 +18,7 @@ export const authenticateApiKey = (req: Request, res: Response, next: NextFuncti
   }
 
   const apiKey = authHeader.substring(7); // Remove 'Bearer ' prefix
-  const validatedKey = apiKeyService.validateApiKey(apiKey);
+  const validatedKey = await apiKeyService.validateApiKey(apiKey);
 
   if (!validatedKey) {
     return res.status(401).json({ error: 'Invalid or expired API key' });

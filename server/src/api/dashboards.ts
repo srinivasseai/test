@@ -6,11 +6,9 @@ const router = Router();
 // In-memory dashboard storage (in production, use database)
 const dashboards: Map<string, any> = new Map();
 
-// Apply API key authentication to all dashboard routes
-router.use(authenticateApiKey);
-
-// GET /api/dashboards - List all dashboards
-router.get('/', requireRole(['Admin', 'Editor', 'Viewer']), (req: Request, res: Response) => {
+// Apply API key authentication to all dashboard routes EXCEPT listing
+// Allow public access to dashboard listing for frontend
+router.get('/', (req: Request, res: Response) => {
   try {
     const dashboardList = Array.from(dashboards.values()).map(dashboard => ({
       id: dashboard.id,
@@ -36,8 +34,8 @@ router.get('/', requireRole(['Admin', 'Editor', 'Viewer']), (req: Request, res: 
   }
 });
 
-// GET /api/dashboards/uid/:uid - Get dashboard by UID
-router.get('/uid/:uid', requireRole(['Admin', 'Editor', 'Viewer']), (req: Request, res: Response) => {
+// GET /api/dashboards/uid/:uid - Get dashboard by UID (public access for frontend)
+router.get('/uid/:uid', (req: Request, res: Response) => {
   try {
     const dashboard = Array.from(dashboards.values()).find(d => d.uid === req.params.uid);
     
@@ -48,9 +46,9 @@ router.get('/uid/:uid', requireRole(['Admin', 'Editor', 'Viewer']), (req: Reques
     res.json({
       meta: {
         type: 'db',
-        canSave: req.apiKey?.role === 'Admin' || req.apiKey?.role === 'Editor',
-        canEdit: req.apiKey?.role === 'Admin' || req.apiKey?.role === 'Editor',
-        canAdmin: req.apiKey?.role === 'Admin',
+        canSave: false,
+        canEdit: false,
+        canAdmin: false,
         canStar: true,
         slug: dashboard.slug,
         url: `/d/${dashboard.uid}/${dashboard.slug}`,
@@ -78,6 +76,9 @@ router.get('/uid/:uid', requireRole(['Admin', 'Editor', 'Viewer']), (req: Reques
     });
   }
 });
+
+// Apply API key authentication to modification routes
+router.use(authenticateApiKey);
 
 // POST /api/dashboards/db - Create or update dashboard
 router.post('/db', requireRole(['Admin', 'Editor']), (req: Request, res: Response) => {

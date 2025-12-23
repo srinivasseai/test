@@ -12,6 +12,7 @@ function DashboardsContent() {
   const { dashboards, createNewDashboard, deleteDashboard } = useDashboardRegistry();
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [savedDashboards, setSavedDashboards] = useState<any[]>([]);
+  const [backendDashboards, setBackendDashboards] = useState<any[]>([]);
 
   useEffect(() => {
     const loadSavedDashboards = () => {
@@ -19,7 +20,20 @@ function DashboardsContent() {
       setSavedDashboards(saved);
     };
     
+    const loadBackendDashboards = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/dashboards');
+        if (response.ok) {
+          const data = await response.json();
+          setBackendDashboards(data);
+        }
+      } catch (error) {
+        console.log('Backend not available, using localStorage only');
+      }
+    };
+    
     loadSavedDashboards();
+    loadBackendDashboards();
     
     // Listen for storage changes to refresh the list
     const handleStorageChange = () => {
@@ -34,13 +48,13 @@ function DashboardsContent() {
   }, []);
 
   const starredDashboards = dashboards.filter(d => d.starred && !d.isNew);
-  const recentDashboards = [...dashboards.filter(d => !d.isNew), ...savedDashboards]
-    .sort((a, b) => new Date(b.updatedAt || b.savedAt).getTime() - new Date(a.updatedAt || a.savedAt).getTime());
+  const allDashboards = [...dashboards.filter(d => !d.isNew), ...savedDashboards, ...backendDashboards]
+    .sort((a, b) => new Date(b.updatedAt || b.savedAt || b.created || 0).getTime() - new Date(a.updatedAt || a.savedAt || a.created || 0).getTime());
   const draftDashboards = dashboards.filter(d => d.isNew);
   
   // Group dashboards by folder
-  const dashboardsByFolder = recentDashboards.reduce((acc, dashboard) => {
-    const folder = dashboard.folder || 'General';
+  const dashboardsByFolder = allDashboards.reduce((acc, dashboard) => {
+    const folder = dashboard.folder || dashboard.folderTitle || 'General';
     if (!acc[folder]) acc[folder] = [];
     acc[folder].push(dashboard);
     return acc;
@@ -52,7 +66,10 @@ function DashboardsContent() {
   };
 
   const handleOpenDashboard = (dashboard: any) => {
-    if (dashboard.id) {
+    if (dashboard.uid && dashboard.uid.startsWith('dash-')) {
+      // Backend dashboard - use the /d/ route
+      navigate(`/d/${dashboard.uid}`);
+    } else if (dashboard.id) {
       // For saved dashboards, navigate with the dashboard data in view mode (not edit)
       navigate(`/dashboard/${dashboard.id}`, { state: { dashboardData: dashboard, editMode: false } });
     } else {
@@ -190,7 +207,8 @@ function DashboardsContent() {
                         <td className="px-4 py-3 text-muted-foreground">
                           {dashboard.updatedAt ? 
                             new Date(dashboard.updatedAt).toLocaleDateString() : 
-                            new Date(dashboard.savedAt).toLocaleDateString()}
+                            dashboard.savedAt ? new Date(dashboard.savedAt).toLocaleDateString() :
+                            dashboard.created ? new Date(dashboard.created).toLocaleDateString() : 'Unknown'}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1 flex-wrap">

@@ -5,7 +5,7 @@ import { CreateApiKeyRequest, ApiKeyResponse } from '../types/apikey';
 const router = Router();
 
 // POST /api/auth/keys - Create new API key
-router.post('/keys', (req: Request, res: Response) => {
+router.post('/keys', async (req: Request, res: Response) => {
   try {
     const request: CreateApiKeyRequest = req.body;
     
@@ -17,7 +17,7 @@ router.post('/keys', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid role. Must be Admin, Editor, or Viewer' });
     }
 
-    const apiKey = apiKeyService.createApiKey(request);
+    const apiKey = await apiKeyService.createApiKey(request);
     
     // Return the key only once during creation
     res.status(201).json({
@@ -59,9 +59,9 @@ router.get('/keys', (req: Request, res: Response) => {
 });
 
 // DELETE /api/auth/keys/:id - Delete API key
-router.delete('/keys/:id', (req: Request, res: Response) => {
+router.delete('/keys/:id', async (req: Request, res: Response) => {
   try {
-    const deleted = apiKeyService.deleteApiKey(req.params.id);
+    const deleted = await apiKeyService.deleteApiKey(req.params.id);
     
     if (!deleted) {
       return res.status(404).json({ error: 'API key not found' });

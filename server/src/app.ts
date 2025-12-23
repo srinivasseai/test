@@ -36,6 +36,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Serve API keys management page
+app.get('/api-keys.html', (req, res) => {
+  res.sendFile('api-keys.html', { root: './public' });
+});
+
 // API routes
 app.use('/api/datasources', datasourcesRouter);
 app.use('/api/query', queryRouter);
