@@ -9,5 +9,16 @@
     "sslMode": "disable",
     "maxOpenConns": 10,
     "id": "ds-1766489533594"
+  },
+  {
+    "name": "skew_data",
+    "type": "postgres",
+    "url": "postgresql://postgres:Welcom@123@localhost:5432/skew_data",
+    "database": "skew_data",
+    "user": "postgres",
+    "password": "Welcom@123",
+    "sslMode": "disable",
+    "maxOpenConns": 10,
+    "id": "ds-1766569335163"
   }
 ]

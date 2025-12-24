@@ -5,6 +5,20 @@
     "key": "gm_0e18ef2b3e6d4612343c3c39293dab1464aea1b58667ca9d9f1b2ad127a03852",
     "role": "Admin",
     "created": "2025-12-23T10:09:50.612Z",
-    "lastUsed": "2025-12-23T11:13:02.947Z"
+    "lastUsed": "2025-12-24T10:27:04.638Z"
+  },
+  {
+    "id": "48d9f1f9-f379-4e7d-9c62-6c3255757665",
+    "name": "Test API Key",
+    "key": "gm_bb288202508a3947aab366a5609fa0ebcbb9de6936d3dca030cb034753502882",
+    "role": "Admin",
+    "created": "2025-12-24T10:47:21.283Z"
+  },
+  {
+    "id": "39ae093e-51c3-4500-a396-3b1847aaea30",
+    "name": "Test API Key",
+    "key": "gm_61f62cdbcbbe14d4bb4eb3631cf6a49a4a73ee138b899796a32ac387fab76242",
+    "role": "Admin",
+    "created": "2025-12-24T10:49:08.650Z"
   }
 ]
