@@ -105,7 +105,17 @@ export function PanelEditorModal() {
       setTitle(editingPanel.title);
       setDescription(editingPanel.description || "");
       setVizType(editingPanel.type);
-      setQueries(editingPanel.targets || [{ refId: "A", expr: "", datasource: "prometheus", queryMode: "code" }]);
+      // Convert targets to queries format, handling both expr and rawSql
+      const convertedQueries = (editingPanel.targets || []).map((target: any) => ({
+        refId: target.refId || "A",
+        expr: target.rawSql || target.expr || "",
+        rawSql: target.rawSql || "",
+        datasource: target.datasource || editingPanel.datasource?.uid || "prometheus",
+        queryMode: target.queryMode || "code",
+        format: target.format || "table",
+        rawQuery: target.rawQuery !== undefined ? target.rawQuery : true
+      }));
+      setQueries(convertedQueries.length > 0 ? convertedQueries : [{ refId: "A", expr: "", datasource: "prometheus", queryMode: "code" }]);
     } else {
       console.log('Setting up for NEW panel with vizType:', selectedVizType || 'timeseries');
       setTitle("New Panel");
@@ -242,13 +252,36 @@ export function PanelEditorModal() {
     // Check if this is truly a new panel or existing panel
     const isExistingPanel = editingPanel && panels.some(p => p.id === editingPanel.id);
     
+    // Convert queries to targets format, preserving rawSql for SQL datasources
+    const targets = queries.map((q: any) => {
+      const dsType = getDataSourceType(q.datasource);
+      const isSQL = ["postgres", "mysql"].includes(dsType);
+      
+      if (isSQL) {
+        return {
+          refId: q.refId,
+          rawSql: q.expr || q.rawSql || "",
+          rawQuery: true,
+          format: q.format || "table",
+          datasource: q.datasource
+        };
+      } else {
+        return {
+          refId: q.refId,
+          expr: q.expr || "",
+          datasource: q.datasource,
+          queryMode: q.queryMode || "code"
+        };
+      }
+    });
+    
     if (isExistingPanel) {
       console.log('Updating existing panel:', editingPanel.id);
       updatePanel(editingPanel.id, {
         title,
         description,
         type: vizType as PanelConfig["type"],
-        targets: queries,
+        targets: targets,
       });
       toast.success("Panel updated");
     } else {
@@ -259,7 +292,7 @@ export function PanelEditorModal() {
         description,
         gridPos: { x: 0, y: 0, w: 6, h: 4 },
         options: {},
-        targets: queries,
+        targets: targets,
       };
       console.log('Adding new panel:', newPanel.id, 'Title:', title);
       console.log('editingPanel was:', editingPanel?.id, 'but treating as new');
@@ -711,8 +744,11 @@ export function PanelEditorModal() {
                           ["postgres", "mysql"].includes(getDataSourceType(queries[activeQueryIndex].datasource)) ? (
                             <SQLQueryBuilder
                               datasource={getDataSourceType(queries[activeQueryIndex].datasource)}
-                              value={queries[activeQueryIndex].expr}
-                              onChange={(query) => handleUpdateQuery(activeQueryIndex, "expr", query)}
+                              value={queries[activeQueryIndex].rawSql || queries[activeQueryIndex].expr || ""}
+                              onChange={(query) => {
+                                handleUpdateQuery(activeQueryIndex, "expr", query);
+                                handleUpdateQuery(activeQueryIndex, "rawSql", query);
+                              }}
                             />
                           ) : (
                             <div className="space-y-3">
@@ -772,12 +808,23 @@ export function PanelEditorModal() {
                         ) : (
                           <>
                             <div className="space-y-1">
-                              <label className="text-xs text-muted-foreground">Query expression</label>
+                              <label className="text-xs text-muted-foreground">
+                                {["postgres", "mysql"].includes(getDataSourceType(queries[activeQueryIndex].datasource)) 
+                                  ? "SQL Query" 
+                                  : "Query expression"}
+                              </label>
                               <textarea
-                                value={queries[activeQueryIndex].expr}
-                                onChange={(e) => handleUpdateQuery(activeQueryIndex, "expr", e.target.value)}
+                                value={queries[activeQueryIndex].rawSql || queries[activeQueryIndex].expr || ""}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  handleUpdateQuery(activeQueryIndex, "expr", value);
+                                  // Also update rawSql for SQL datasources
+                                  if (["postgres", "mysql"].includes(getDataSourceType(queries[activeQueryIndex].datasource))) {
+                                    handleUpdateQuery(activeQueryIndex, "rawSql", value);
+                                  }
+                                }}
                                 placeholder={getQueryHints(queries[activeQueryIndex].datasource)[0]}
-                                className="w-full px-3 py-2 bg-input border border-border rounded font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] resize-none"
+                                className="w-full px-3 py-2 bg-input border border-border rounded font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring min-h-[120px] resize-y"
                               />
                             </div>
                             
@@ -787,7 +834,12 @@ export function PanelEditorModal() {
                               {getQueryHints(queries[activeQueryIndex].datasource).map((hint, i) => (
                                 <button
                                   key={i}
-                                  onClick={() => handleUpdateQuery(activeQueryIndex, "expr", hint)}
+                                  onClick={() => {
+                                    handleUpdateQuery(activeQueryIndex, "expr", hint);
+                                    if (["postgres", "mysql"].includes(getDataSourceType(queries[activeQueryIndex].datasource))) {
+                                      handleUpdateQuery(activeQueryIndex, "rawSql", hint);
+                                    }
+                                  }}
                                   className="text-xs px-2 py-1 bg-secondary rounded hover:bg-secondary/80 font-mono truncate max-w-[200px]"
                                 >
                                   {hint}

@@ -4,10 +4,15 @@ $headers = @{
     "Content-Type" = "application/json"
 }
 
-$dashboardJson = Get-Content "skew-dashboard-final.json" -Raw
+$dashboardContent = Get-Content "skew-dashboard-final.json" -Raw | ConvertFrom-Json
+$requestBody = @{
+    dashboard = $dashboardContent
+    folderId = 0
+    overwrite = $false
+} | ConvertTo-Json -Depth 100
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3001/api/dashboards/db" -Method Post -Headers $headers -Body $dashboardJson
+    $response = Invoke-RestMethod -Uri "http://localhost:3001/api/dashboards/db" -Method Post -Headers $headers -Body $requestBody
     Write-Host "✅ Dashboard imported successfully!" -ForegroundColor Green
     Write-Host "Dashboard ID: $($response.id)" -ForegroundColor Cyan
     Write-Host "Dashboard URL: $($response.url)" -ForegroundColor Cyan

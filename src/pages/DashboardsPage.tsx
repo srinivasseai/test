@@ -66,8 +66,9 @@ function DashboardsContent() {
   };
 
   const handleOpenDashboard = (dashboard: any) => {
-    if (dashboard.uid && dashboard.uid.startsWith('dash-')) {
-      // Backend dashboard - use the /d/ route
+    // If dashboard has a UID (from backend), use the /d/ route
+    if (dashboard.uid) {
+      // Backend dashboard - use the /d/ route (works for any UID format)
       navigate(`/d/${dashboard.uid}`);
     } else if (dashboard.id) {
       // For saved dashboards, navigate with the dashboard data in view mode (not edit)

@@ -366,15 +366,19 @@ export function DashboardProvider({
   const [dashboardFolder, setDashboardFolder] = useState(initialFolder);
   const [dashboardTags, setDashboardTags] = useState<string[]>(initialTags);
   
-  // Use initialPanels if provided, otherwise use empty array for new dashboards or defaults
+  // Use initialPanels if provided, otherwise use empty array for new dashboards
+  // Never use defaultPanels for saved dashboards - only for truly new unsaved dashboards
   const [panels, setPanels] = useState<PanelConfig[]>(() => {
     console.log('DashboardProvider initializing panels:', { initialPanels, isNewDashboard, initialPanelsLength: initialPanels?.length });
+    // If initialPanels is explicitly provided (even if empty array), use it
     if (initialPanels !== undefined) {
       console.log('Using initialPanels:', initialPanels);
       return initialPanels;
     }
-    const fallback = isNewDashboard ? [] : defaultPanels;
-    console.log('Using fallback panels:', fallback.length);
+    // Only use defaultPanels for new dashboards that haven't been saved yet
+    // For saved dashboards, always use empty array if no panels provided
+    const fallback = isNewDashboard ? [] : [];
+    console.log('Using fallback panels (empty array, no dummy data):', fallback.length);
     return fallback;
   });
   
